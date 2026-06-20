@@ -1,0 +1,7 @@
+{
+    "releaseNote": "files/B056.xml",
+    "tagExcel": "files/master_import_name_tag.xlsx",
+    "bVersion": "B056",
+    "hpmcVersion": "B520",
+    "output": "files/tags.xlsx"
+  }
