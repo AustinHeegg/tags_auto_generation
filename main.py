@@ -7,8 +7,8 @@ from sync_repo_and_tag import compare_lists_release_excel, sync_excel_with_relea
 from validations import validate_version_format
 from version_update import update_versions
 from comp_manifest_releasenotes import compare_manifest_and_release_note
-
 from update_manifest_revision import update_manifest_code_xmls, update_helf_revision_by_release_notes
+from format_check import format_targets
 
 # 打印模块化标题框：用于区分不同阶段输出
 def print_block(title: str) -> None:
@@ -124,10 +124,6 @@ def main():
             with open(code_xml_path, "rb") as f:
                 after = f.read()
 
-            # 因为 update_manifest_code_xmls 已经写回了文件，
-            # 这里无法再拿到 before hash（为了性能我们不再二次读取 before）。
-            # 如果你坚持“仅当字节变化才打印”，需要 iter_target_code_xmls + 手动before/after hash。
-            # 你当前需求是“只要变更就打印”，我们用 modified_count>0 作为变更依据。
             if modified_count > 0:
                 changed_files += 1
                 print(f"[xml updated] {code_xml_path} modified_projects={modified_count}")
@@ -148,6 +144,9 @@ def main():
         else:
             print(f"HELF code.xml已更新，修改project数={helf_modified}")
     print_block("\nmanifest code.xml 替换完成\n")
+
+    format_targets(manifest_dir, product_dir)
+    print("[format updated done]manifest code.xml 格式化完成\n")
 
 if __name__ == "__main__":
     main()
