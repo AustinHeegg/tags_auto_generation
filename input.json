@@ -1,4 +1,5 @@
 {
+    "manifestDir": "D:/Code/xy_manifest/manifest_code",
     "releaseNote": "files/B056.xml",
     "tagExcel": "files/master_import_name_tag.xlsx",
     "bVersion": "B056",
