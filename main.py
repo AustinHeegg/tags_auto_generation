@@ -9,6 +9,7 @@ from version_update import update_versions
 from comp_manifest_releasenotes import compare_manifest_and_release_note
 from update_manifest_revision import update_manifest_code_xmls, update_helf_revision_by_release_notes
 from format_check import format_targets
+from opensource_check import update_opensrc_revisions 
 
 # 打印模块化标题框：用于区分不同阶段输出
 def print_block(title: str) -> None:
@@ -145,8 +146,17 @@ def main():
             print(f"HELF code.xml已更新，修改project数={helf_modified}")
     print_block("\nmanifest code.xml 替换完成\n")
 
-    format_targets(manifest_dir, product_dir)
-    print("[format updated done]manifest code.xml 格式化完成\n")
+    # ========== 更新 opensource.xml ==========
+    print_block("更新 opensource.xml 中的 opensrc revision")
+    update_opensrc_revisions(manifest_dir, release_note_path)
+
+    # ========== 格式化 manifest code.xml ==========
+    print_block("统一code.xml中的格式")
+    if manifest_dir and product_dir:
+        format_targets(manifest_dir, product_dir)
+        print("[format updated done]manifest code.xml 格式化完成\n")
+    else:
+        print("跳过manifest code.xml格式化（缺少manifest_dir或product_dir）")
 
 if __name__ == "__main__":
     main()
