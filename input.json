@@ -1,8 +1,9 @@
 {
     "manifestDir": "D:/Code/xy_manifest/manifest_code",
-    "releaseNote": "files/B056.xml",
+    "releaseNote": "files/B070.xml",
+    "product_dir": "master",
     "tagExcel": "files/master_import_name_tag.xlsx",
-    "bVersion": "B056",
-    "hpmcVersion": "B520",
+    "bVersion": "B070",
+    "hpmcVersion": "B530",
     "output": "files/tags.xlsx"
   }
