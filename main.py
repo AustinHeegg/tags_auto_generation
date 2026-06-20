@@ -7,7 +7,8 @@ from sync_repo_and_tag import compare_lists_release_excel, sync_excel_with_relea
 from validations import validate_version_format
 from version_update import update_versions
 from comp_manifest_releasenotes import compare_manifest_and_release_note
-from update_manifest_revision import iter_target_code_xmls, update_code_xml_revisions
+
+from update_manifest_revision import update_manifest_code_xmls, update_helf_revision_by_release_notes
 
 # 打印模块化标题框：用于区分不同阶段输出
 def print_block(title: str) -> None:
@@ -65,7 +66,7 @@ def main():
         print("\n未在配置中提供 manifestDir，跳过 manifest vs releaseNote 对比。")
 
     # ========== 读取 Tag点 Excel ==========
-    print(f"\n读取 Tag点Excel：{tag_excel_path}")
+    print(f"\n读取 Tag点Excel：{tag_excel_path}\n{'='*85}")
     df_tag = pd.read_excel(tag_excel_path)
 
     # 从 Excel 第一列提取项目名（去掉前缀 URL）
@@ -92,53 +93,61 @@ def main():
     compare_lists_release_excel(release_projects, [p for p in excel_projects_after_sync if p])
 
     # ========== 版本号替换 ==========
-    print_block("版本号替换处理中")
+    print_block("版本号tag点替换处理中")
     updated_df = update_versions(df_tag, b_version, hpmc_version)
 
     # ========== 输出结果 Excel ==========
     updated_df.to_excel(output_path, index=False)
     print(f"\n已保存更新后的Tag点表格到：{output_path}")
 
-    # ========== 更新 manifest code.xml revision ==========
+    # ========== 更新 manifest code.xml revision（跳过 HELF） ==========
     if manifest_dir:
         if not product_dir:
             print("未在配置中提供 product_dir，无法更新 manifest 的 code.xml。")
             return
 
-    print_block("更新 manifest code.xml revision（跳过 HELF）...")
+        print_block("更新 manifest code.xml revision（跳过 HELF）")
 
-    import hashlib
+        import hashlib
 
-    updated_files = 0
-    changed_files = 0
-    total_modified_projects = 0
+        updated_files = 0
+        changed_files = 0
+        total_modified_projects = 0
 
-    for code_xml_path in iter_target_code_xmls(manifest_dir, product_dir):
-        with open(code_xml_path, "rb") as f:
-            before = f.read()
+        # update_manifest_code_xmls 内部会跳过 HELF，并返回（code_xml_path, modified_count）
+        for code_xml_path, modified_count in update_manifest_code_xmls(
+            manifest_dir, product_dir, b_version, hpmc_version
+        ):
+            updated_files += 1
+            total_modified_projects += modified_count
 
-        # 新增了 manifest_dir 参数用于 HPMC 文件判定
-        modified_count = update_code_xml_revisions(
-            code_xml_path, manifest_dir, b_version, hpmc_version
+            with open(code_xml_path, "rb") as f:
+                after = f.read()
+
+            # 因为 update_manifest_code_xmls 已经写回了文件，
+            # 这里无法再拿到 before hash（为了性能我们不再二次读取 before）。
+            # 如果你坚持“仅当字节变化才打印”，需要 iter_target_code_xmls + 手动before/after hash。
+            # 你当前需求是“只要变更就打印”，我们用 modified_count>0 作为变更依据。
+            if modified_count > 0:
+                changed_files += 1
+                print(f"[xml updated] {code_xml_path} modified_projects={modified_count}")
+
+        if changed_files == 0:
+            print("manifest中code.xml无变更")
+        else:
+            print(f"[xml done] 变更文件数={changed_files}, 共修改project数={total_modified_projects}（处理文件数={updated_files}）")
+
+        # ========== 更新 HELF code.xml revision ==========
+        print_block("更新 HELF code.xml revision")
+        helf_modified = update_helf_revision_by_release_notes(
+            manifest_dir=manifest_dir,
+            release_note_path=release_note_path
         )
-
-        updated_files += 1
-        total_modified_projects += modified_count
-
-        with open(code_xml_path, "rb") as f:
-            after = f.read()
-
-        # 只要格式/注释/换行等导致文件字节变化，也算“变更文件”
-        changed = (hashlib.md5(before).digest() != hashlib.md5(after).digest())
-
-        if changed:
-            changed_files += 1
-            print(f"[xml updated] {code_xml_path} modified_projects={modified_count}")
-
-    if changed_files == 0:
-        print("manifest中code.xml无变更")
-    else:
-        print(f"[xml done] 变更文件数={changed_files}, 共修改project数={total_modified_projects}（处理文件数={updated_files}）")
+        if helf_modified == 0:
+            print("HELF code.xml无变更")
+        else:
+            print(f"HELF code.xml已更新，修改project数={helf_modified}")
+    print_block("\nmanifest code.xml 替换完成\n")
 
 if __name__ == "__main__":
     main()

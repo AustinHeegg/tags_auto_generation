@@ -112,3 +112,46 @@ def update_manifest_code_xmls(manifest_dir: str, product_dir: str, b_version: st
             code_xml_path, manifest_dir, b_version, hpmc_version
         )
         yield code_xml_path, modified_count
+
+def update_helf_revision_by_release_notes(manifest_dir: str, release_note_path: str) -> int:
+    """
+    HELF 特殊处理：
+    - 读取 releaseNotes：path -> upstream
+    - 更新 manifest_dir/HELF/code.xml 中 project[@path] 匹配项的 revision -> upstream
+    - 只做 revision 替换，不碰其它字段
+    """
+    helf_code_xml = os.path.join(manifest_dir, "HELF", "code.xml")
+    if not os.path.exists(helf_code_xml):
+        raise FileNotFoundError(f"未找到 HELF code.xml：{helf_code_xml}")
+
+    parser = ET.XMLParser(remove_blank_text=False, strip_cdata=False)
+
+    # 1) 解析 releaseNotes 构建映射：path -> upstream
+    rn_tree = ET.parse(release_note_path, parser)
+    rn_root = rn_tree.getroot()
+
+    path_to_upstream = {}
+    for proj in rn_root.findall(".//project"):
+        p = proj.get("path")
+        u = proj.get("upstream")
+        if p and u:
+            path_to_upstream[p] = u
+
+    # 2) 解析 HELF code.xml，按 path 替换 revision
+    code_tree = ET.parse(helf_code_xml, parser)
+    code_root = code_tree.getroot()
+
+    modified_count = 0
+    for proj in code_root.findall(".//project"):
+        p = proj.get("path")
+        if not p:
+            continue
+        if p in path_to_upstream:
+            new_rev = path_to_upstream[p]
+            old_rev = proj.get("revision")
+            if new_rev != old_rev:
+                proj.set("revision", new_rev)
+                modified_count += 1
+
+    write_xml_preserve_newline(code_tree, helf_code_xml)
+    return modified_count
